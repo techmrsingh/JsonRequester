@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Requester</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    
+    <div class="container">
+        <div class="controls"> 
+        <h1>JSON Requester</h1>
+
+
+        <label for="dummySelect">Dummy Values:</label>
+        <select id="dummySelect">
+            <option value="dummy1">dummy1</option>
+            <option value="dummy2">dummy2</option>
+            <option value="dummy3">dummy3</option>
+        </select>
+
+        <label for="versionSelect">Version:</label>
+        <select id="versionSelect">
+            <option value="v1">v1</option>
+            <option value="v2">v2</option>
+            <option value="v3">v3</option>
+        </select>
+
+
+        <label for="httpMethod">HTTP Method:</label>
+        <select id="httpMethod">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="PATCH">PATCH</option>
+        </select>
+        <label for="url">Endpoint URL:</label>
+        <input type="url" id="url" placeholder="https://api.example.com/endpoint">
+
+        <label for="environments">Select Environment:</label>
+        <select id="environments">
+            <option value="prod">Production</option>
+            <option value="stag">Staging</option>
+            <option value="dev">Development</option>
+        </select>
+
+        <label for="headers">Headers (key:value, one per line):</label>
+        <textarea id="headers" rows="5"></textarea>
+</div >
+
+       <!-- JSON Request Container -->
+<div class="json-box" id="jsonRequestBox">
+    <label for="jsonRequest">JSON Request:</label>
+    <textarea id="jsonRequest" rows="10"></textarea>
+    <button id="sendRequest">Send Request</button>
+</div>
+
+
+ <!-- JSON Response Container -->
+<div class="json-box" id="jsonResponseBox">
+    <label for="response">Response:</label>
+    <textarea id="response" rows="10" readonly></textarea>
+</div>
+
+    </div>
+    <script src="payloads.js"></script>
+    <script src="headers.js"></script>
+    <script>
+        document.getElementById('dummySelect').addEventListener('change', updatePayload);
+        document.getElementById('versionSelect').addEventListener('change', updatePayload);
+        document.getElementById('environments').addEventListener('change', updateEndpointURL);
+
+
+// function updatePayload() {
+//     const dummyValue = document.getElementById('dummySelect').value;
+//     const versionValue = document.getElementById('versionSelect').value;
+
+//     let payload = {};
+
+//     if (dummyValue === "dummy1" && versionValue === "v1") {
+//         payload = {
+//             key1: "value1",
+//             version: "v1"
+//         };
+//     } else if (dummyValue === "dummy2" && versionValue === "v1") {
+//         payload = {
+//             key2: "value2",
+//             version: "v1"
+//         };
+//     } // ... Add as many combinations as needed
+
+//     document.getElementById('jsonRequest').value = JSON.stringify(payload, null, 2);
+// }
+function updatePayload() {
+    const dummyValue = document.getElementById('dummySelect').value;
+    const versionValue = document.getElementById('versionSelect').value;
+
+    // Check if the selected combination exists in our payloads
+    if (PAYLOADS[dummyValue] && PAYLOADS[dummyValue][versionValue]) {
+        const payload = PAYLOADS[dummyValue][versionValue];
+        document.getElementById('jsonRequest').value = JSON.stringify(payload, null, 2);
+    } else {
+        // Default payloads (If not found in PAYLOADS)
+        let payload = {};
+
+        if (dummyValue === "dummy1" && versionValue === "v1") {
+            payload = {
+                key1: "value1",
+                version: "v1"
+            };
+        } else if (dummyValue === "dummy2" && versionValue === "v1") {
+            payload = {
+                key2: "value2",
+                version: "v1"
+            };
+        } // ... Add as many combinations as needed
+        
+        document.getElementById('jsonRequest').value = JSON.stringify(payload, null, 2);
+    }
+}
+
+function updateEndpointURL() {
+    const environment = document.getElementById('environments').value;
+    let baseURL = 'https://api.example.com/endpoint'; // Default
+
+    switch (environment) {
+        case 'dev':
+            baseURL = 'https://api.development.example.com/endpoint';
+            break;
+        case 'stag':
+            baseURL = 'https://api.staging.example.com/endpoint';
+            break;
+        case 'prod':
+            baseURL = 'https://api.production.example.com/endpoint';
+            break;
+    }
+
+    document.getElementById('url').value = baseURL;
+    // Update headers based on environment
+    const headersObj = ENV_HEADERS[environment];
+    const headersString = Object.entries(headersObj).map(([key, value]) => `${key}: ${value}`).join('\n');
+    document.getElementById('headers').value = headersString;
+
+}
+
+updateEndpointURL();
+
+    document.getElementById('sendRequest').addEventListener('click', async function() {
+        const url = document.getElementById('url').value;
+        const httpMethod = document.getElementById('httpMethod').value;
+        const headersInput = document.getElementById('headers').value.split('\n');
+        const jsonRequest = document.getElementById('jsonRequest').value;
+        
+        let headers = {};
+
+        headersInput.forEach(header => {
+            let parts = header.split(':');
+            if (parts.length === 2) {
+                headers[parts[0].trim()] = parts[1].trim();
+            }
+        });
+
+        try {
+            let response;
+            switch (httpMethod) {
+                case 'GET':
+                    response = await axios.get(url, { headers: headers });
+                    break;
+                case 'POST':
+                    response = await axios.post(url, JSON.parse(jsonRequest), { headers: headers });
+                    break;
+                case 'PUT':
+                    response = await axios.put(url, JSON.parse(jsonRequest), { headers: headers });
+                    break;
+                case 'DELETE':
+                    response = await axios.delete(url, { headers: headers });
+                    break;
+                case 'PATCH':
+                    response = await axios.patch(url, JSON.parse(jsonRequest), { headers: headers });
+                    break;
+                default:
+                    throw new Error('Invalid method');
+            }
+            document.getElementById('response').value = JSON.stringify(response.data, null, 2);
+        } catch (error) {
+            document.getElementById('response').value = `Error: ${error.message}`;
+        }
+    });
+
+    
+
+
+updatePayload();
+
+    </script>
+  
+</body>
+</html>
